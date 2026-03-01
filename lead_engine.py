@@ -1,7 +1,6 @@
 """
 WeddingLeadIntel AI - Lead Engine v2
 India weddings only. 10-180 days window.
-5 sources = more leads!
 """
 
 import re
@@ -85,6 +84,28 @@ FOREIGN_CITIES = [
     "canada", "uk", "australia", "uae", "qatar", "europe",
 ]
 
+VENDOR_KEYWORDS = [
+    "weddingplanner", "wedding_planner", "bridalmakeup", "bridal_makeup",
+    "makeupartist", "makeup_artist", "weddingvenue", "wedding_venue",
+    "weddingdecor", "wedding_decor", "mehendiartist", "mehendi_artist",
+    "weddingflorist", "weddingcatering", "bridalstore", "weddingband",
+    "weddingdj", "weddingcake", "weddingcard", "bridalwear",
+    "weddingmandap", "weddingchoreographer", "bridalmua",
+]
+
+REJECT_KEYWORDS = [
+    "photographer", "videographer", "cinematographer", "studio",
+    "photoandvideo", "weddingphotog",
+]
+
+MONTH_MAP = {
+    "jan": 1, "feb": 2, "mar": 3, "apr": 4, "may": 5, "jun": 6,
+    "jul": 7, "aug": 8, "sep": 9, "sept": 9, "oct": 10, "nov": 11, "dec": 12,
+    "january": 1, "february": 2, "march": 3, "april": 4,
+    "june": 6, "july": 7, "august": 8, "september": 9,
+    "october": 10, "november": 11, "december": 12,
+}
+
 
 def is_indian_city(city: str) -> bool:
     city_lower = city.lower().strip()
@@ -108,22 +129,38 @@ def normalize_city(city: str) -> dict:
     north = ["Punjab", "Haryana", "Uttar Pradesh", "Rajasthan", "Delhi", "Chandigarh"]
     east = ["West Bengal", "Odisha", "Assam", "Jharkhand", "Bihar"]
     west = ["Maharashtra", "Gujarat"]
-    if state in south: region = "south"
-    elif state in north: region = "north"
-    elif state in east: region = "east"
-    elif state in west: region = "west"
-    else: region = "central"
+    if state in south:
+        region = "south"
+    elif state in north:
+        region = "north"
+    elif state in east:
+        region = "east"
+    elif state in west:
+        region = "west"
+    else:
+        region = "central"
     culture_map = {
-        "Kerala": "christian_hindu_muslim", "Punjab": "sikh",
-        "Rajasthan": "hindu_destination", "Goa": "christian_destination",
-        "Tamil Nadu": "hindu_tamil", "West Bengal": "hindu_bengali",
-        "Gujarat": "hindu_jain", "Maharashtra": "hindu_marathi",
-        "Karnataka": "hindu_kannada", "Andhra Pradesh": "hindu_telugu",
+        "Kerala": "christian_hindu_muslim",
+        "Punjab": "sikh",
+        "Rajasthan": "hindu_destination",
+        "Goa": "christian_destination",
+        "Tamil Nadu": "hindu_tamil",
+        "West Bengal": "hindu_bengali",
+        "Gujarat": "hindu_jain",
+        "Maharashtra": "hindu_marathi",
+        "Karnataka": "hindu_kannada",
+        "Andhra Pradesh": "hindu_telugu",
         "Telangana": "hindu_telugu",
     }
     culture = culture_map.get(state, "hindu")
     display = f"{canonical.title()}, {state}" if state != "India" else canonical.title()
-    return {"city": canonical, "state": state, "region": region, "culture": culture, "display": display}
+    return {
+        "city": canonical,
+        "state": state,
+        "region": region,
+        "culture": culture,
+        "display": display,
+    }
 
 
 def get_vendor_accounts(city: str, state: str) -> list:
@@ -259,20 +296,6 @@ def generate_hashtags(city_data: dict) -> list:
     return unique[:150]
 
 
-VENDOR_KEYWORDS = [
-    "weddingplanner", "wedding_planner", "bridalmakeup", "bridal_makeup",
-    "makeupartist", "makeup_artist", "weddingvenue", "wedding_venue",
-    "weddingdecor", "wedding_decor", "mehendiartist", "mehendi_artist",
-    "weddingflorist", "weddingcatering", "bridalstore", "weddingband",
-    "weddingdj", "weddingcake", "weddingcard", "bridalwear",
-    "weddingmandap", "weddingchoreographer", "bridalmua",
-]
-REJECT_KEYWORDS = [
-    "photographer", "videographer", "cinematographer", "studio",
-    "photoandvideo", "weddingphotog",
-]
-
-
 def is_vendor(username: str, bio: str = "") -> bool:
     text = (username + " " + bio).lower()
     if any(k in text for k in REJECT_KEYWORDS):
@@ -280,42 +303,41 @@ def is_vendor(username: str, bio: str = "") -> bool:
     return sum(1 for k in VENDOR_KEYWORDS if k in text) >= 1
 
 
-MONTH_MAP = {
-    "jan": 1, "feb": 2, "mar": 3, "apr": 4, "may": 5, "jun": 6,
-    "jul": 7, "aug": 8, "sep": 9, "sept": 9, "oct": 10, "nov": 11, "dec": 12,
-    "january": 1, "february": 2, "march": 3, "april": 4,
-    "june": 6, "july": 7, "august": 8, "september": 9,
-    "october": 10, "november": 11, "december": 12,
-}
-
-
 def detect_timeline(caption: str):
     if not caption:
         return None
     today = datetime.now()
     text = re.sub(r'[^\x00-\x7F]+', ' ', caption.lower())
+
     m = re.search(r'(\d+)\s*(?:days?|sleeps?)\s*(?:to go|left|away|until|till|more)', text)
     if m:
         d = int(m.group(1))
         if 10 <= d <= 180:
             return d
+
     m = re.search(r't-?(\d+)', text)
     if m:
         d = int(m.group(1))
         if 10 <= d <= 180:
             return d
+
     m = re.search(r'(\d{1,2})[/\-\.](\d{1,2})[/\-\.](\d{2,4})', text)
     if m:
         try:
             d, mo, y = int(m.group(1)), int(m.group(2)), int(m.group(3))
-            if y < 100: y += 2000
+            if y < 100:
+                y += 2000
             if 1 <= d <= 31 and 1 <= mo <= 12:
                 diff = (datetime(y, mo, d) - today).days
                 if 10 <= diff <= 180:
                     return diff
         except Exception:
             pass
-    m = re.search(r'(jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*[\s,]+202[567]', text)
+
+    m = re.search(
+        r'(jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)'
+        r'[a-z]*[\s,]+202[567]', text
+    )
     if m:
         mn = MONTH_MAP.get(m.group(1).lower()[:3])
         if mn:
@@ -326,6 +348,7 @@ def detect_timeline(caption: str):
                     return diff
             except Exception:
                 pass
+
     if re.search(r'next\s+month|coming\s+month', text):
         return 30
     if re.search(r'this\s+month', text):
@@ -377,7 +400,7 @@ async def safe_apify_run(client: ApifyClient, actor_id: str, input_data: dict) -
             return items
         except Exception as e:
             err = str(e)
-            logger.warning(f"⚠️ {actor_id} attempt {attempt+1}: {err}")
+            logger.warning(f"⚠️ {actor_id} attempt {attempt + 1}: {err}")
             if "403" in err or "429" in err:
                 await asyncio.sleep((attempt + 1) * 30)
             if attempt == 2:
@@ -385,7 +408,9 @@ async def safe_apify_run(client: ApifyClient, actor_id: str, input_data: dict) -
     return []
 
 
-def extract_profiles_from_posts(posts: list, city: str, state: str, source_type: str = "hashtag") -> list:
+def extract_profiles_from_posts(
+        posts: list, city: str, state: str,
+        source_type: str = "hashtag") -> list:
     profiles = []
     for post in posts:
         caption = post.get('caption', '') or ''
@@ -398,28 +423,50 @@ def extract_profiles_from_posts(posts: list, city: str, state: str, source_type:
         timestamp = str(post.get('timestamp', '') or '')
         days = detect_timeline(caption)
         base_profile = {
-            'post_caption': caption[:200], 'post_url': post_url,
-            'post_date': timestamp, 'detected_city': city, 'state': state,
-            'multi_source': False, 'likes_count': likes,
-            'comments_count': comments_c, 'days_until_wedding': days,
-            'source_type': source_type, 'follower_count': None, 'is_private': None,
+            'post_caption': caption[:200],
+            'post_url': post_url,
+            'post_date': timestamp,
+            'detected_city': city,
+            'state': state,
+            'multi_source': False,
+            'likes_count': likes,
+            'comments_count': comments_c,
+            'days_until_wedding': days,
+            'source_type': source_type,
+            'follower_count': None,
+            'is_private': None,
         }
         for user in (post.get('taggedUsers', []) or []):
             uname = user.get('username', '') if isinstance(user, dict) else str(user)
             uname = uname.strip().lstrip('@')
             if uname and not is_vendor(uname):
-                profiles.append({**base_profile, 'username': uname, 'priority': 1, 'tagged_by_vendor': True})
+                profiles.append({
+                    **base_profile,
+                    'username': uname,
+                    'priority': 1,
+                    'tagged_by_vendor': True,
+                })
         mentions = post.get('mentions', []) or re.findall(r'@(\w+)', caption)
         for uname in mentions:
             uname = uname.strip().lstrip('@')
             if uname and not is_vendor(uname):
-                profiles.append({**base_profile, 'username': uname, 'priority': 2, 'tagged_by_vendor': False})
+                profiles.append({
+                    **base_profile,
+                    'username': uname,
+                    'priority': 2,
+                    'tagged_by_vendor': False,
+                })
         author = post.get('ownerUsername', '') or ''
         if not author:
             a = post.get('author', {})
             author = a.get('username', '') if isinstance(a, dict) else str(a)
         if author.strip() and not is_vendor(author.strip()):
-            profiles.append({**base_profile, 'username': author.strip(), 'priority': 3, 'tagged_by_vendor': False})
+            profiles.append({
+                **base_profile,
+                'username': author.strip(),
+                'priority': 3,
+                'tagged_by_vendor': False,
+            })
     return profiles
 
 
@@ -428,10 +475,12 @@ def filter_with_claude(profiles: list, city: str, ac) -> list:
     for i in range(0, min(len(profiles), 150), 10):
         batch = profiles[i:i + 10]
         batch_data = [{
-            'username': p['username'], 'caption': p['post_caption'],
+            'username': p['username'],
+            'caption': p['post_caption'],
             'days_until_wedding': p['days_until_wedding'],
             'tagged_by_vendor': p['tagged_by_vendor'],
-            'priority': p['priority'], 'source_type': p['source_type'],
+            'priority': p['priority'],
+            'source_type': p['source_type'],
             'multi_source': p['multi_source'],
         } for p in batch]
 
@@ -441,7 +490,7 @@ City: {city}, India. Return JSON array only.
 Profiles:
 {json.dumps(batch_data, indent=2)}
 
-For each return:
+For each profile return:
 {{"username":"...","keep":true/false,"label":"bride/groom/unknown",
 "wedding_month":"April 2025" or null,"days_estimate":number or null,
 "confidence":0-100,"confidence_tier":"high/medium/low",
@@ -449,13 +498,13 @@ For each return:
 "rejection_reason":null or "reason"}}
 
 KEEP: real person, India wedding, 10-180 days, confidence>=75
-REJECT: business, vendor username, outside India, past wedding, fake, confidence<75
-BOOST: tagged_by_vendor+15, multi_source+10, priority1+10, ceremony words+10, countdown+10
+REJECT: business, vendor, outside India, past wedding, fake, confidence<75
+BOOST: tagged_by_vendor+15, multi_source+10, priority1+10
 ONLY JSON array. No other text."""
 
         try:
             response = ac.messages.create(
-                model="claude-sonnet-4-20250514",
+                model="claude-sonnet-4-5",
                 max_tokens=2000,
                 messages=[{"role": "user", "content": prompt}]
             )
@@ -481,9 +530,14 @@ ONLY JSON array. No other text."""
             logger.error(f"Claude error: {e}")
             for p in batch:
                 if p.get('priority') == 1 and p.get('tagged_by_vendor'):
-                    p.update({'confidence': 75, 'confidence_tier': 'medium',
-                               'label': 'unknown', 'wedding_month': None,
-                               'days_estimate': p.get('days_until_wedding'), 'is_private': None})
+                    p.update({
+                        'confidence': 75,
+                        'confidence_tier': 'medium',
+                        'label': 'unknown',
+                        'wedding_month': None,
+                        'days_estimate': p.get('days_until_wedding'),
+                        'is_private': None,
+                    })
                     kept.append(p)
     return kept
 
@@ -511,7 +565,9 @@ async def discover_leads(location: str) -> list:
     logger.info(f"[1/5] Tier1 hashtags for {city}...")
     p1 = extract_profiles_from_posts(
         await safe_apify_run(apify_client, "apify/instagram-scraper", {
-            "searchType": "hashtag", "searchLimit": 30, "searchQueries": tier1
+            "searchType": "hashtag",
+            "searchLimit": 30,
+            "searchQueries": tier1,
         }), city, state, "hashtag")
     all_profiles.extend(p1)
     logger.info(f"Source 1: {len(p1)} profiles")
@@ -520,7 +576,9 @@ async def discover_leads(location: str) -> list:
     logger.info(f"[2/5] Tier2 hashtags for {city}...")
     p2 = extract_profiles_from_posts(
         await safe_apify_run(apify_client, "apify/instagram-scraper", {
-            "searchType": "hashtag", "searchLimit": 25, "searchQueries": tier2
+            "searchType": "hashtag",
+            "searchLimit": 25,
+            "searchQueries": tier2,
         }), city, state, "hashtag")
     all_profiles.extend(p2)
     logger.info(f"Source 2: {len(p2)} profiles")
@@ -529,16 +587,19 @@ async def discover_leads(location: str) -> list:
     logger.info(f"[3/5] Tier3 hashtags for {city}...")
     p3 = extract_profiles_from_posts(
         await safe_apify_run(apify_client, "apify/instagram-scraper", {
-            "searchType": "hashtag", "searchLimit": 20, "searchQueries": tier3
+            "searchType": "hashtag",
+            "searchLimit": 20,
+            "searchQueries": tier3,
         }), city, state, "hashtag")
     all_profiles.extend(p3)
     logger.info(f"Source 3: {len(p3)} profiles")
     await asyncio.sleep(30)
 
-    logger.info(f"[4/5] Vendor batch 1 tagged posts for {city}...")
+    logger.info(f"[4/5] Vendor batch 1 for {city}...")
     p4 = extract_profiles_from_posts(
         await safe_apify_run(apify_client, "apify/instagram-tagged-scraper", {
-            "usernames": vendors[:25], "resultsLimit": 50
+            "usernames": vendors[:25],
+            "resultsLimit": 50,
         }), city, state, "vendor_tag")
     for p in p4:
         p['tagged_by_vendor'] = True
@@ -547,10 +608,11 @@ async def discover_leads(location: str) -> list:
     logger.info(f"Source 4: {len(p4)} profiles")
     await asyncio.sleep(30)
 
-    logger.info(f"[5/5] Vendor batch 2 tagged posts for {city}...")
+    logger.info(f"[5/5] Vendor batch 2 for {city}...")
     p5 = extract_profiles_from_posts(
         await safe_apify_run(apify_client, "apify/instagram-tagged-scraper", {
-            "usernames": vendors[25:50], "resultsLimit": 50
+            "usernames": vendors[25:50],
+            "resultsLimit": 50,
         }), city, state, "vendor_tag")
     for p in p5:
         p['tagged_by_vendor'] = True
@@ -566,7 +628,8 @@ async def discover_leads(location: str) -> list:
 
     filtered.sort(key=lambda x: (
         not x.get('multi_source', False),
-        0 if x.get('confidence_tier') == 'high' else 1 if x.get('confidence_tier') == 'medium' else 2,
+        0 if x.get('confidence_tier') == 'high'
+        else 1 if x.get('confidence_tier') == 'medium' else 2,
         x.get('days_estimate', 999) or 999,
     ))
     return filtered[:50]
