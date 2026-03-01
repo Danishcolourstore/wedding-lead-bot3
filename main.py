@@ -15,16 +15,14 @@ from telegram.ext import (
 from keep_alive import keep_alive
 from lead_engine import discover_leads, is_indian_city, normalize_city
 
-# ── Logging ──────────────────────────────────────────────────
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO
 )
 logger = logging.getLogger(__name__)
 
-# ── Rate limiting ────────────────────────────────────────────
 last_search_time = {}
-SEARCH_COOLDOWN = 600  # 10 minutes
+SEARCH_COOLDOWN = 600
 
 
 def can_search(user_id: int) -> tuple:
@@ -41,7 +39,6 @@ def mark_searched(user_id: int):
     last_search_time[user_id] = time.time()
 
 
-# ── Format profile card ──────────────────────────────────────
 def format_profile_card(profile: dict) -> tuple:
     username = profile.get('username', 'unknown')
     confidence = profile.get('confidence', 75)
@@ -117,7 +114,6 @@ def format_profile_card(profile: dict) -> tuple:
     return card, keyboard
 
 
-# ── Commands ─────────────────────────────────────────────────
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "Type any Indian city to find wedding leads! 🇮🇳\n"
@@ -161,10 +157,10 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await process_search(update, context, text)
 
 
-async def process_search(update: Update, context: ContextTypes.DEFAULT_TYPE, location: str):
+async def process_search(
+        update: Update, context: ContextTypes.DEFAULT_TYPE, location: str):
     user_id = update.effective_user.id
 
-    # Rate limit check
     can, wait_secs = can_search(user_id)
     if not can:
         mins = wait_secs // 60
@@ -174,7 +170,6 @@ async def process_search(update: Update, context: ContextTypes.DEFAULT_TYPE, loc
         )
         return
 
-    # India validation
     if not is_indian_city(location):
         await update.message.reply_text(
             "⚠️ India Only!\n\n"
@@ -259,12 +254,10 @@ async def process_search(update: Update, context: ContextTypes.DEFAULT_TYPE, loc
         )
 
 
-# ── Error handler ────────────────────────────────────────────
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
     logger.error(f"Bot error: {context.error}")
 
 
-# ── Main ─────────────────────────────────────────────────────
 def main():
     token = os.environ.get('TELEGRAM_BOT_TOKEN')
     if not token:
@@ -283,7 +276,10 @@ def main():
     app.add_error_handler(error_handler)
 
     logger.info("🚀 WeddingLeadIntel AI is LIVE!")
-    app.run_polling(allowed_updates=Update.ALL_TYPES)
+    app.run_polling(
+        allowed_updates=Update.ALL_TYPES,
+        drop_pending_updates=True
+    )
 
 
 if __name__ == '__main__':
