@@ -1,0 +1,8 @@
+```
+python-telegram-bot==20.7
+apify-client
+anthropic
+flask
+httpx
+python-dotenv
+```
