@@ -1,6 +1,5 @@
-python-telegram-bot==20.7
-apify-client
-anthropic
-flask
-httpx
-python-dotenv
+python-telegram-bot==21.3
+anthropic==0.28.0
+apify-client==1.7.1
+flask==3.0.3
+requests==2.32.3
